@@ -1,10 +1,10 @@
-# TCS AutoAssist - Essential Implementation Guide
+# HSBC AutoAssist - Essential Implementation Guide
 
 ## 🎯 Project Overview
 
-**TCS AutoAssist** is an intelligent chatbot system for DC Automation Support Team featuring:
+**HSBC AutoAssist** is an intelligent chatbot system for DC Automation Support Team featuring:
 - **Multi-tier AI**: OpenAI GPT-4 → Ollama Llama 3.2 → Rule-based fallbacks
-- **Category-based Routing**: General, TCS Internal, Monitoring, Knowledge Base
+- **Category-based Routing**: General, HSBC Internal, Monitoring, Knowledge Base
 - **Real-time Problem Resolution**: Server issues, API diagnostics, incident management
 - **Enterprise Integration**: Splunk, Ansible, Confluence APIs
 
@@ -12,7 +12,7 @@
 
 ## 📊 Database Structure
 
-### Database: `TCS_autoassist`
+### Database: `hsbc_autoassist`
 
 #### Core Tables Schema:
 
@@ -86,21 +86,31 @@ graph TB
     E --> F[🧠 GPT Service<br/>Core Intelligence Engine]
     
     F --> G{📋 Category Router}
-    G -->|General| H[🤖 OpenAI GPT-4]
-    G -->|TCS Internal| I[📊 Knowledge Base Search]
-    G -->|Monitoring| J[🔍 Splunk/Ansible APIs]
-    G -->|Knowledge Base| K[📚 Confluence/Docs]
-    
-    H --> L[🦙 Ollama Fallback]
-    L --> M[⚙️ Built-in Responses]
+    G -->|General| H[🤖 Direct LLM Processing]
+    G -->|HSBC Internal| I[📊 Data Collection Phase]
+    G -->|Monitoring| J[🔍 Data Collection Phase]
+    G -->|Knowledge Base| K[📚 Data Collection Phase]
     
     I --> N[📈 CSV Server Issues DB]
-    J --> O[📊 External Monitoring APIs]
-    K --> P[📄 Text Documentation]
+    I --> AA[🏦 Internal HSBC APIs]
+    J --> O[📊 Splunk APIs]
+    J --> BB[🤖 Ansible APIs]
+    K --> P[📄 Confluence APIs]
+    K --> CC[📝 Text Documentation]
     
-    N --> Q[🔧 Resolution Generator]
-    O --> Q
-    P --> Q
+    N --> L[🧠 LLM Analysis Engine<br/>OpenAI GPT-4]
+    AA --> L
+    O --> L
+    BB --> L
+    P --> L
+    CC --> L
+    
+    H --> L
+    L --> DD[🦙 Ollama Fallback]
+    DD --> M[⚙️ Built-in Responses]
+    
+    L --> Q[🔧 Intelligent Response Generator]
+    DD --> Q
     M --> Q
     
     Q --> R[💾 Save to MySQL]
@@ -138,7 +148,7 @@ backend/
 │   │   ├── csv_knowledge_service.py # 📊 Server Issues DB
 │   │   └── enhanced_knowledge_service.py # 🔍 Multi-source Search
 │   └── data/
-│       └── knowledge_base.csv    # 🏦 TCS Server Issues Data
+│       └── knowledge_base.csv    # 🏦 HSBC Server Issues Data
 ├── requirements.txt              # 📦 Python Dependencies
 └── .env                         # 🔑 Configuration File
 ```
@@ -234,37 +244,44 @@ async def _handle_general_educational_query(self, message: str, user_context: Di
         return await self._get_ollama_educational_response(message, user_context)
 ```
 
-#### 2. TCS Internal Issues:
+#### 2. HSBC Internal Issues:
 ```python
-async def _handle_TCS_internal_issue(self, message: str, server_name: str, 
+async def _handle_hsbc_internal_issue(self, message: str, server_name: str, 
                                      correlation_id: str, user_context: Dict):
     """
-    🏦 TCS TECHNICAL ISSUE RESOLUTION
+    🏦 HSBC TECHNICAL ISSUE RESOLUTION WITH LLM ANALYSIS
     
-    Process:
+    Enhanced Process:
     1. Extract server name (gb-, cn-, hk-, vn-, mx-, etc.)
     2. Classify issue type (auth, payload, performance, config)
-    3. Search CSV knowledge base for matching solutions
-    4. Query external APIs (Splunk, Ansible) for real-time data
-    5. Generate structured resolution response
+    3. Collect data from ALL sources:
+       - CSV knowledge base for historical solutions
+       - Internal HSBC APIs for real-time server status
+       - Splunk APIs for log analysis
+       - Ansible APIs for automation data
+    4. Send consolidated data to LLM for intelligent analysis
+    5. Generate comprehensive resolution response
     """
     
     # 🔍 Server extraction & standardization
     if not server_name:
         server_name = self._extract_server_name(message)
     
-    # 📊 Search knowledge base
-    csv_results = self.csv_knowledge.search_issues(message, server_name)
+    # 📊 Phase 1: Data Collection from Multiple Sources
+    collected_data = {
+        "csv_knowledge": self.csv_knowledge.search_issues(message, server_name),
+        "hsbc_apis": await self._query_hsbc_internal_apis(server_name, correlation_id),
+        "splunk_logs": await self._query_splunk_logs(server_name, correlation_id),
+        "ansible_data": await self._query_ansible_status(server_name)
+    }
     
-    if csv_results:
-        # ✅ Found existing solution
-        return self._format_knowledge_base_response(csv_results[0])
-    
-    # 🔍 Query external APIs for real-time data
-    api_data = await self._query_external_apis(message, server_name)
-    
-    # 🧠 AI analysis of the issue
-    return await self._analyze_technical_issue(message, server_name, api_data)
+    # 🧠 Phase 2: LLM Analysis of Consolidated Data
+    return await self._analyze_with_llm(
+        message=message,
+        server_name=server_name,
+        collected_data=collected_data,
+        analysis_type="technical_troubleshooting"
+    )
 ```
 
 #### 3. System Monitoring:
@@ -272,26 +289,36 @@ async def _handle_TCS_internal_issue(self, message: str, server_name: str,
 async def _handle_monitoring_query(self, message: str, server_name: str, 
                                   correlation_id: str, user_context: Dict):
     """
-    📊 SYSTEM MONITORING DATA ANALYSIS
+    📊 SYSTEM MONITORING DATA ANALYSIS WITH LLM INTELLIGENCE
+    
+    Enhanced Process:
+    1. Collect monitoring data from multiple sources
+    2. Send consolidated data to LLM for pattern analysis
+    3. Generate intelligent insights and recommendations
     
     Sources:
-    - Splunk API: Log analysis, error tracking
-    - Ansible API: Automation status, deployment data
-    - Performance metrics: CPU, memory, disk usage
+    - Splunk API: Log analysis, error tracking, performance trends
+    - Ansible API: Automation status, deployment data, job histories
+    - Internal APIs: Real-time metrics, alerts, system health
+    - CSV Knowledge: Historical monitoring patterns
     """
     
-    monitoring_data = {}
+    # 📊 Phase 1: Comprehensive Data Collection
+    monitoring_data = {
+        "splunk_logs": await self._query_splunk_logs(correlation_id, server_name),
+        "ansible_data": await self._query_ansible_status(server_name),
+        "performance_metrics": await self._query_performance_apis(server_name),
+        "alert_history": await self._query_alert_systems(server_name),
+        "historical_patterns": self.csv_knowledge.search_monitoring_patterns(message, server_name)
+    }
     
-    # 📋 Query Splunk for logs
-    if correlation_id:
-        monitoring_data['splunk_logs'] = await self._query_splunk_logs(correlation_id)
-    
-    # 🤖 Query Ansible for automation data
-    if server_name:
-        monitoring_data['ansible_data'] = await self._query_ansible_status(server_name)
-    
-    # 📊 Analyze monitoring data
-    return self._analyze_monitoring_data(monitoring_data, message)
+    # 🧠 Phase 2: LLM Analysis for Intelligent Monitoring Insights
+    return await self._analyze_with_llm(
+        message=message,
+        server_name=server_name,
+        collected_data=monitoring_data,
+        analysis_type="monitoring_analysis"
+    )
 ```
 
 ### Knowledge Base Structure:
@@ -308,7 +335,7 @@ issue_id,server_name,issue_type,error_code,description,root_cause,resolution_ste
 ```python
 def _extract_server_name(self, message: str) -> str:
     """
-    🏦 TCS Server Naming Pattern Recognition
+    🏦 HSBC Server Naming Pattern Recognition
     
     Patterns:
     - gb-* : Great Britain/UK servers
@@ -336,10 +363,126 @@ def _extract_server_name(self, message: str) -> str:
         if match:
             return match.group(0).lower()
     
-    return None
-```
+        return None
 
----
+### LLM Analysis Engine:
+
+```python
+async def _analyze_with_llm(self, message: str, server_name: str, 
+                          collected_data: Dict, analysis_type: str) -> Dict:
+    """
+    🧠 CENTRAL LLM ANALYSIS ENGINE
+    
+    Takes collected data from multiple sources and uses LLM to:
+    1. Analyze patterns and correlations
+    2. Generate intelligent troubleshooting steps
+    3. Provide consolidated recommendations
+    4. Format responses in user-friendly manner
+    """
+    
+    # 🔍 Prepare context for LLM analysis
+    analysis_context = self._prepare_llm_context(
+        message, server_name, collected_data, analysis_type
+    )
+    
+    # 🥇 Primary: OpenAI GPT-4 Analysis
+    try:
+        if self.api_key and self.client:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": f"""
+                        You are an expert HSBC technical support analyst. Analyze the provided data and give:
+                        1. Root cause analysis
+                        2. Step-by-step troubleshooting guide
+                        3. Prevention recommendations
+                        4. Priority assessment
+                        
+                        Analysis Type: {analysis_type}
+                        Server Context: {server_name or 'Multiple servers'}
+                        """
+                    },
+                    {
+                        "role": "user",
+                        "content": f"""
+                        User Query: {message}
+                        
+                        Collected Data Analysis:
+                        {analysis_context}
+                        
+                        Please provide a comprehensive technical resolution response.
+                        """
+                    }
+                ],
+                temperature=0.3,  # Lower temperature for technical accuracy
+                max_tokens=800
+            )
+            
+            llm_response = response.choices[0].message.content
+            
+            return {
+                "message": f"🔧 **Technical Analysis & Resolution**\n\n{llm_response}",
+                "ai_service_used": "openai_technical_analysis",
+                "data_sources": list(collected_data.keys()),
+                "server_name": server_name,
+                "analysis_type": analysis_type,
+                "confidence_level": "high"
+            }
+            
+    except Exception as e:
+        logger.error(f"OpenAI analysis error: {e}")
+    
+    # 🥈 Fallback: Ollama Analysis
+    return await self._analyze_with_ollama(
+        message, server_name, collected_data, analysis_type
+    )
+
+def _prepare_llm_context(self, message: str, server_name: str, 
+                        collected_data: Dict, analysis_type: str) -> str:
+    """
+    📋 PREPARE STRUCTURED CONTEXT FOR LLM ANALYSIS
+    
+    Formats collected data into structured context that LLM can analyze effectively
+    """
+    
+    context_parts = []
+    
+    # 🏦 CSV Knowledge Base Results
+    if collected_data.get("csv_knowledge"):
+        context_parts.append("## Historical Knowledge Base:")
+        for item in collected_data["csv_knowledge"][:3]:  # Top 3 matches
+            context_parts.append(f"- Issue: {item.get('description', 'N/A')}")
+            context_parts.append(f"  Root Cause: {item.get('root_cause', 'N/A')}")
+            context_parts.append(f"  Resolution: {item.get('resolution_steps', 'N/A')}")
+    
+    # 📊 Splunk Log Data
+    if collected_data.get("splunk_logs"):
+        context_parts.append("\n## Splunk Log Analysis:")
+        context_parts.append(f"- Recent errors: {len(collected_data['splunk_logs'].get('errors', []))}")
+        context_parts.append(f"- Error patterns: {collected_data['splunk_logs'].get('patterns', 'None detected')}")
+    
+    # 🤖 Ansible Automation Data
+    if collected_data.get("ansible_data"):
+        context_parts.append("\n## Automation Status:")
+        context_parts.append(f"- Job status: {collected_data['ansible_data'].get('status', 'Unknown')}")
+        context_parts.append(f"- Last deployment: {collected_data['ansible_data'].get('last_deployment', 'N/A')}")
+    
+    # 🏦 Internal HSBC API Data
+    if collected_data.get("hsbc_apis"):
+        context_parts.append("\n## Real-time Server Status:")
+        context_parts.append(f"- Server health: {collected_data['hsbc_apis'].get('health_status', 'Unknown')}")
+        context_parts.append(f"- Current load: {collected_data['hsbc_apis'].get('current_load', 'N/A')}")
+    
+    # 📄 Documentation/Confluence Data
+    if collected_data.get("confluence_data"):
+        context_parts.append("\n## Documentation References:")
+        for doc in collected_data["confluence_data"][:2]:  # Top 2 relevant docs
+            context_parts.append(f"- {doc.get('title', 'Untitled')}: {doc.get('summary', 'N/A')}")
+    
+    return "\n".join(context_parts)
+```---
 
 ## 📱 Frontend Implementation
 
@@ -362,11 +505,11 @@ const categoryOptions = [
         color: '#2196F3'
     },
     {
-        id: 'TCS_internal', 
-        title: 'TCS Internal Issue',
+        id: 'hsbc_internal', 
+        title: 'HSBC Internal Issue',
         description: 'Server problems, API errors, technical issues',
         icon: '🏦', 
-        color: '#DB0011'  // TCS Red
+        color: '#DB0011'  // HSBC Red
     },
     {
         id: 'monitoring',
@@ -465,7 +608,7 @@ class ApiService {
 ### Backend Environment (`.env`):
 ```bash
 # 🗄️ Database Configuration
-DATABASE_URL=mysql+pymysql://TCS_user:secure_password@localhost:3306/TCS_autoassist
+DATABASE_URL=mysql+pymysql://hsbc_user:secure_password@localhost:3306/hsbc_autoassist
 
 # 🔐 Security Settings  
 SECRET_KEY=your-32-character-jwt-secret-key-here
@@ -488,7 +631,7 @@ ANSIBLE_API_URL=https://your-ansible-tower.com
 ANSIBLE_API_TOKEN=your-ansible-token
 
 # 🏢 Corporate Settings
-COMPANY_NAME=TCS
+COMPANY_NAME=HSBC
 DEPARTMENT=DC Automation Support Team
 BOT_NAME=DC AutoAssist
 ```
@@ -496,7 +639,7 @@ BOT_NAME=DC AutoAssist
 ### Frontend Environment (`.env`):
 ```bash
 REACT_APP_API_URL=http://localhost:8000
-REACT_APP_COMPANY_NAME=TCS
+REACT_APP_COMPANY_NAME=HSBC
 REACT_APP_BOT_NAME=DC AutoAssist
 ```
 
@@ -520,7 +663,7 @@ cryptography==41.0.7
 ### Node.js Dependencies (`package.json`):
 ```json
 {
-  "name": "TCS-autoassist-frontend",
+  "name": "hsbc-autoassist-frontend",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0", 
@@ -543,9 +686,9 @@ cryptography==41.0.7
 ### 1. Database Setup:
 ```sql
 -- Create database and user
-CREATE DATABASE TCS_autoassist;
-CREATE USER 'TCS_user'@'localhost' IDENTIFIED BY 'secure_password';
-GRANT ALL PRIVILEGES ON TCS_autoassist.* TO 'TCS_user'@'localhost';
+CREATE DATABASE hsbc_autoassist;
+CREATE USER 'hsbc_user'@'localhost' IDENTIFIED BY 'secure_password';
+GRANT ALL PRIVILEGES ON hsbc_autoassist.* TO 'hsbc_user'@'localhost';
 
 -- Run table creation scripts (from schema above)
 -- Insert sample data for testing
@@ -607,27 +750,30 @@ POST /api/chat/send-message
 }
 ```
 
-### 2. Technical Issue:
+### 2. Technical Issue (LLM-Enhanced Analysis):
 **Request**:
 ```json
 POST /api/chat/send-message
 {
-  "message": "gb-api-01 showing 401 error",
-  "category": "TCS_internal", 
-  "server_name": "gb-api-01"
+  "message": "gb-api-01 showing 401 error with correlation ID CID12345",
+  "category": "hsbc_internal", 
+  "server_name": "gb-api-01",
+  "correlation_id": "CID12345"
 }
 ```
 
 **Response**:
 ```json
 {
-  "message": "🔧 **Technical Issue Resolution**\n\n**Server**: gb-api-01 (UK Region)\n**Issue**: Authentication Error (401)\n\n**Resolution Steps**:\n1. Check JWT token expiration\n2. Regenerate API token\n3. Update request headers\n4. Retry request\n\n**Root Cause**: Token expired after 24 hours",
-  "ai_service_used": "knowledge_base_match",
-  "data_sources": ["CSV Knowledge Base", "Server Issues DB"],
+  "message": "🔧 **Technical Analysis & Resolution**\n\n## Root Cause Analysis\nBased on analysis of multiple data sources, the 401 authentication error on gb-api-01 is caused by JWT token expiration combined with recent security policy changes.\n\n## Comprehensive Resolution Steps\n\n### Immediate Actions (Priority: High)\n1. **Verify Token Status**\n   - Check current JWT token expiration: `curl -H 'Authorization: Bearer [token]' /api/auth/verify`\n   - Expected result: Token expired at 14:30 UTC\n\n2. **Generate New Token**\n   - Use HSBC token service: `/api/auth/refresh`\n   - Update application configuration with new token\n\n3. **Validate Resolution**\n   - Test API endpoint with new token\n   - Monitor Splunk logs for correlation ID CID12345\n\n### Preventive Measures\n- Implement token auto-refresh mechanism\n- Set up monitoring alerts for token expiration\n- Review authentication flow documentation\n\n## Supporting Evidence\n- **Splunk Logs**: 15 similar 401 errors in last hour\n- **Historical Data**: Same issue resolved previously with token refresh\n- **Server Health**: gb-api-01 operational, authentication service healthy\n\n**Estimated Resolution Time**: 10-15 minutes",
+  "ai_service_used": "openai_technical_analysis",
+  "data_sources": ["csv_knowledge", "hsbc_apis", "splunk_logs", "ansible_data"],
+  "server_name": "gb-api-01",
+  "analysis_type": "technical_troubleshooting",
+  "confidence_level": "high",
   "incident_required": false,
-  "knowledge_base_match": true,
   "server_region": "UK",
-  "issue_priority": "medium"
+  "issue_priority": "high"
 }
 ```
 
@@ -641,17 +787,31 @@ POST /api/chat/send-message
 3. **Context Preservation**: Category provides essential context for AI
 4. **User Experience**: Clear expectations for response type
 
-### 🧠 **Multi-tier AI Strategy**:
-1. **Primary**: OpenAI GPT-4 for comprehensive responses
-2. **Fallback**: Ollama Llama 3.2 for when OpenAI unavailable
-3. **Final**: Built-in responses for guaranteed availability
-4. **Smart Routing**: Category determines which tier to use first
+### 🧠 **Multi-tier AI Strategy with Data Integration**:
+1. **Data Collection Phase**: Gather information from all relevant sources
+   - CSV knowledge base (historical solutions)
+   - Splunk APIs (log analysis)
+   - Internal HSBC APIs (real-time status)
+   - Confluence (documentation)
+   - Ansible (automation data)
 
-### 📊 **Knowledge Base Design**:
-1. **CSV Format**: Easy to maintain, version control friendly
-2. **Structured Data**: Consistent fields for reliable matching
-3. **Server Patterns**: Recognizes TCS naming conventions
-4. **Issue Classification**: Systematic categorization for quick resolution
+2. **LLM Analysis Phase**: Send consolidated data to AI for intelligent analysis
+   - **Primary**: OpenAI GPT-4 for comprehensive technical analysis
+   - **Fallback**: Ollama Llama 3.2 for when OpenAI unavailable
+   - **Final**: Built-in responses for guaranteed availability
+
+3. **Response Generation**: LLM creates contextual, actionable responses
+   - Root cause analysis
+   - Step-by-step troubleshooting
+   - Prevention recommendations
+   - Priority assessment
+
+### 📊 **Enhanced Knowledge Integration Design**:
+1. **Multi-source Data Collection**: Systematic gathering from all knowledge sources
+2. **Structured Context Preparation**: Format data optimally for LLM analysis
+3. **Intelligent Correlation**: LLM identifies patterns across different data sources
+4. **Consolidated Response**: Single, comprehensive answer combining all insights
+5. **Continuous Learning**: System improves based on resolution outcomes
 
 ### 🔒 **Security Considerations**:
 1. **JWT Authentication**: Stateless, secure token-based auth
@@ -661,4 +821,4 @@ POST /api/chat/send-message
 
 ---
 
-This guide provides your team with all essential implementation details while being concise enough for corporate environments with code access restrictions. The modular design allows for gradual implementation and customization based on your specific TCS requirements! 🎉
+This guide provides your team with all essential implementation details while being concise enough for corporate environments with code access restrictions. The modular design allows for gradual implementation and customization based on your specific HSBC requirements! 🎉
